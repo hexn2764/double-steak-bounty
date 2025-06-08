@@ -85,10 +85,7 @@ sudo apt install python3-pip
 ---
 ### 4.  Install the Challenge
 
-<placeholder to fill after a GItHub repo is created. Here is will be something like "clone the repo">
-Then:
-
-Choose either **User View** or **Developer View**.
+Clone this repository. Choose either **User View** or **Developer View**:
 
 #### 4.1. User View
 To test the challenge as if in a CTF, do:
