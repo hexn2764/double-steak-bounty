@@ -1,0 +1,47 @@
+@startuml
+title Double Steak Bounty - Top-Level Menu Logic
+
+start
+
+:Show main menu;
+repeat
+
+:User selects an option (1–4);
+
+if (1: Order a steak?) then (Yes)
+  :Ask for number of steaks;
+  if (Valid and affordable?) then (Yes)
+    :Deduct credits;
+    :Set order_filled = true;
+    :Call proceed_steaks();
+  else (No)
+    :Display joke;
+  endif
+elseif (2: Read a newspaper?) then (Yes)
+  :Ask for memory address;
+  if (Points to 0xdeadbeef?) then (Yes)
+    :Display steak message;
+  else (No)
+    :Display random newspaper;
+  endif
+elseif (3: Play a game?) then (Yes)
+  :Call play_game();
+elseif (4: Leave the restaurant?) then (Yes)
+  if (Was an order placed?) then (Yes)
+    if (Leave feedbac?) then (Yes)
+      :Prompt for guestbook index;
+      :Prompt for comment;
+    endif
+    :Say goodbye;
+    stop
+  else (No)
+    :Say goodbye;
+    stop
+  endif
+else (Invalid option)
+  :Invalid choice;
+endif
+
+repeat while (Back to menu)
+
+@enduml

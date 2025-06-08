@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
+# Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+
+# Generates a random flag with a playful steakhouse-themed victory message.
+
+HEX_CHARS=$(head -c 16 /dev/urandom | od -An -tx1 | tr -dc 'a-f0-9' | head -c 32)
+FLAG="flag_${HEX_CHARS}"
+
+MESSAGES=(
+  "Like a blade sharpened in silence, your steak is ready."
+  "A steak cooked in shadows, served in glory."
+  "Victory is served rare, with a side of exploit."
+  "Only the worthy shall feast upon this flag."
+  "Don’t leave without your meat, champ!"
+  "Flag? You mean today’s filet mignon?"
+  "Fresh off the grill — and out of bounds!"
+  "You hacked your way to the chef's table!"
+  "Welcome back, sir. Your steak has been expecting you."
+  "You’ve earned this meat. Medium-pwned."
+  "Born of fire, delivered in silence — your steak awaits."
+  "Zero-day dry-aged for maximum flavor."
+  "You buffer-overflamed your way into the kitchen."
+  "Use-after-meat detected."
+  "Welcome to the elite cuts. No forks needed."
+  "We grill. You pwn. That’s the deal."
+  "Grilled with passion. Served with privilege."
+  "Like a shadow returning to the flame, the steak finds its way home."
+)
+
+INDEX=$((RANDOM % ${#MESSAGES[@]}))
+MSG="🥩  ${MESSAGES[$INDEX]}  🥩"
+
+printf "\033[31m
+   %s
+
+   ,--./,-.
+  / #      \\\\
+ |          |
+  \\\\        /    Today's Special:
+   \`._,._.'     %s
+
+ Bon appétit!
+\033[0m\n" "$MSG" "$FLAG"

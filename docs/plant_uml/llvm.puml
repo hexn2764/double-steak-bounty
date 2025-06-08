@@ -1,0 +1,37 @@
+@startuml
+skinparam backgroundColor transparent
+skinparam TitleFontColor #888888
+title LLVM Compilation Pipeline
+skinparam ArrowColor #888888
+start
+
+: C source code;
+
+: Clang (frontend);
+note right
+Parses code and generates LLVM IR
+end note
+
+: LLVM IR;
+note right
+Intermediate representation used by LLVM
+end note
+
+: LLVM (middle-end);
+note right
+Applies optimizations and safety passes (e.g., SafeStack)
+end note
+
+: LLVM (backend);
+note right
+Generates machine code (e.g., x86-64)
+end note
+
+: Final binary;
+note right
+The resulting executable (e.g., ELF file)
+end note
+
+stop
+
+@enduml

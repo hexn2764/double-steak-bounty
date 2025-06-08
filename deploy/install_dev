@@ -1,0 +1,150 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
+# Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+
+# Builds and deploys the full CTF challenge stack with adjustable stack size,
+# producing a fresh runtime container and artifacts for both challenge and exploit.
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+BUILD_IMAGE="vuln-builder-dev"
+RUN_IMAGE="vuln-runtime-dev"
+TMP_CONTAINER="tmp-build-dev"
+LIBC_SOURCE="/lib/x86_64-linux-gnu/libc-2.31.so"
+LIBC_DEST_EXPLOIT="../exploit/libc-docker.so"
+LIBC_DEST_USER="../challenge/libc-2.31.so"
+VULN_BIN="vuln"
+
+# default stack size (8 MiB)
+STACK_SIZE="8388608"
+
+WITH_PTRACE=0
+
+EXPECTED_SUFFIX="double_steak_bounty/deploy"
+CURRENT_PATH="$(realpath "$PWD")"
+
+if [[ "$CURRENT_PATH" != *"$EXPECTED_SUFFIX" ]]; then
+  echo -e "${RED}[!] This script must be run from inside a directory ending with:${RESET} ${YELLOW}$EXPECTED_SUFFIX${RESET}"
+  echo -e "${CYAN}    Current path:${RESET} $CURRENT_PATH"
+  exit 1
+fi
+
+while getopts "u:s" opt; do
+  case $opt in
+    u)
+      case $OPTARG in
+        8) STACK_SIZE="8388608" ;;
+        16) STACK_SIZE="16777216" ;;
+        24) STACK_SIZE="25165824" ;;
+        32) STACK_SIZE="33554432" ;;
+        64) STACK_SIZE="67108864" ;; # for testing only
+        *)
+          echo -e "${RED}[!] Invalid stack size. Choose from: 8, 16, 24, 32, 64${RESET}"
+          exit 1
+          ;;
+      esac
+      ;;
+    s)
+      WITH_PTRACE=1
+      ;;
+    *)
+      echo -e "${RED}[!] Usage: $0 [-u 8|16|24|32|64] [-s]${RESET}"
+      exit 1
+      ;;
+  esac
+done
+
+echo -e "${CYAN}[*] Validating directory structure...${RESET}"
+for file in build.Dockerfile run.Dockerfile vuln.c newspaper.txt names.txt; do
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}[!] Missing required file: $file${RESET}"
+        exit 1
+    fi
+done
+
+for dir in ../challenge ../exploit ; do
+    if [[ ! -d "$dir" ]]; then
+        echo -e "${YELLOW}[!] Creating missing directory: $dir${RESET}"
+        mkdir -p "$dir"
+    fi
+done
+
+echo -e "${CYAN}[*] Copying names.txt, newspaper.txt, and vuln.c to challenge/...${RESET}"
+cp names.txt ../challenge/
+cp newspaper.txt ../challenge/
+cp vuln.c ../challenge/
+
+echo -e "${CYAN}[*] Removing previous runtime container if it exists...${RESET}"
+docker rm -f $RUN_IMAGE 2>/dev/null || true
+
+echo -e "${CYAN}[*] Building build container: ${YELLOW}${BUILD_IMAGE}${RESET}"
+docker build --no-cache -f build.Dockerfile -t $BUILD_IMAGE .
+
+echo -e "${CYAN}[*] Cleaning up old build container if it exists...${RESET}"
+docker rm -f $TMP_CONTAINER 2>/dev/null || true
+
+echo -e "${CYAN}[*] Creating temporary container to extract build artifacts...${RESET}"
+docker create --name $TMP_CONTAINER $BUILD_IMAGE
+
+echo -e "${CYAN}[*] Copying built binary to all targets...${RESET}"
+docker cp $TMP_CONTAINER:/build/$VULN_BIN ../challenge/$VULN_BIN
+docker cp $TMP_CONTAINER:/build/$VULN_BIN ../exploit/$VULN_BIN
+docker cp $TMP_CONTAINER:/build/$VULN_BIN ./$VULN_BIN
+
+echo -e "${CYAN}[*] Extracting libc used inside container...${RESET}"
+docker cp $TMP_CONTAINER:$LIBC_SOURCE $LIBC_DEST_EXPLOIT
+docker cp $TMP_CONTAINER:$LIBC_SOURCE $LIBC_DEST_USER
+
+echo -e "${CYAN}[*] Removing temporary container...${RESET}"
+docker rm $TMP_CONTAINER
+
+echo -e "${CYAN}[*] Building runtime container: ${YELLOW}${RUN_IMAGE}${RESET}"
+docker build --no-cache -f run.Dockerfile -t $RUN_IMAGE .
+
+# Run container
+if [[ $WITH_PTRACE -eq 1 ]]; then
+  echo -e "${CYAN}[*] Running with SYS_PTRACE enabled...${RESET}"
+  docker run -d \
+    --cap-add=SYS_PTRACE \
+    --security-opt seccomp=unconfined \
+    --ulimit stack=$STACK_SIZE:$STACK_SIZE \
+    --name $RUN_IMAGE \
+    -p 1337:1337 \
+    $RUN_IMAGE
+else
+  docker run -d \
+    --ulimit stack=$STACK_SIZE:$STACK_SIZE \
+    --name $RUN_IMAGE \
+    -p 1337:1337 \
+    $RUN_IMAGE
+fi
+
+echo -e "${CYAN}[*] Runtime container started and now being stopped for CTF runtime...${RESET}"
+docker stop $RUN_IMAGE
+
+echo -e "${CYAN}[*] Creating rand_replay.c...${RESET}"
+cat > ../exploit/rand_replay.c << 'EOF'
+#include <stdlib.h>
+#include <time.h>
+
+void init() {
+	srand(time(NULL));
+}
+
+int getValue() {
+	return rand() % 10 + 2;
+}
+EOF
+
+echo -e "${CYAN}[*] Compiling rand_replay.c → rand_replay.so...${RESET}"
+gcc -shared -fPIC -o ../exploit/rand_replay.so ../exploit/rand_replay.c
+
+echo -e "${GREEN}[✓] Setup complete!${RESET}"
+echo -e "${CYAN}To start the challenge server later, run:${RESET}"
+echo -e "${YELLOW}  docker start $RUN_IMAGE${RESET}"

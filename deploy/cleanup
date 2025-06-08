@@ -1,0 +1,48 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
+# Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+
+# Removes all generated challenge and exploit artifacts to reset the workspace.
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
+
+FILES_TO_DELETE=(
+  "../challenge/names.txt"
+  "../challenge/newspaper.txt"
+  "../challenge/vuln"
+  "../challenge/vuln.c"
+  "../challenge/libc-2.31.so"
+  "vuln"
+  "../exploit/libc-docker.so"
+  "../exploit/rand_replay.c"
+  "../exploit/rand_replay.so"
+  "../exploit/vuln"
+)
+
+EXPECTED_SUFFIX="double_steak_bounty/deploy"
+CURRENT_PATH="$(realpath "$PWD")"
+
+if [[ "$CURRENT_PATH" != *"$EXPECTED_SUFFIX" ]]; then
+  echo -e "${RED}[!] This script must be run from inside a directory ending with:${RESET} ${YELLOW}$EXPECTED_SUFFIX${RESET}"
+  echo -e "${CYAN}    Current path:${RESET} $CURRENT_PATH"
+  exit 1
+fi
+
+
+echo -e "${CYAN}[*] Cleaning up generated files...${RESET}"
+
+for file in "${FILES_TO_DELETE[@]}"; do
+  if [ -f "$file" ]; then
+    rm "$file"
+    echo -e "${GREEN}[✓] Removed $file${RESET}"
+  else
+    echo -e "${RED}[-] Skipped (not found): $file${RESET}"
+  fi
+done
+
+echo -e "${CYAN}[*] Cleanup complete.${RESET}"

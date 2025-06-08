@@ -1,0 +1,84 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
+# Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+
+set -e
+
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+# Paths and constants
+BUILD_IMAGE="vuln-builder-user"
+RUN_IMAGE="vuln-runtime-user"
+TMP_CONTAINER="tmp-build-user"
+VULN_BIN="vuln"
+DEPLOY_DIR="../deploy"
+LIBC_SOURCE="/lib/x86_64-linux-gnu/libc-2.31.so"
+LIBC_DEST="./libc-2.31.so"
+
+EXPECTED_SUFFIX="double_steak_bounty/challenge"
+CURRENT_PATH="$(realpath "$PWD")"
+
+if [[ "$CURRENT_PATH" != *"$EXPECTED_SUFFIX" ]]; then
+  echo -e "${RED}[!] This script must be run from inside a directory ending with:${RESET} ${YELLOW}$EXPECTED_SUFFIX${RESET}"
+  echo -e "${CYAN}    Current path:${RESET} $CURRENT_PATH"
+  exit 1
+fi
+
+
+echo -e "${CYAN}[*] Validating directory structure...${RESET}"
+for file in "$DEPLOY_DIR/build.Dockerfile" "$DEPLOY_DIR/run.Dockerfile" "$DEPLOY_DIR/vuln.c" "$DEPLOY_DIR/newspaper.txt" "$DEPLOY_DIR/names.txt"; do
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}[!] Missing required file: $file${RESET}"
+        exit 1
+    fi
+done
+
+echo -e "${CYAN}[*] Copying names.txt, newspaper.txt, and vuln.c to challenge/...${RESET}"
+cp $DEPLOY_DIR/names.txt .
+cp $DEPLOY_DIR/newspaper.txt .
+cp $DEPLOY_DIR/vuln.c .
+
+echo -e "${CYAN}[*] Removing previous runtime container if it exists...${RESET}"
+docker rm -f $RUN_IMAGE 2>/dev/null || true
+
+echo -e "${CYAN}[*] Building build container: ${YELLOW}${BUILD_IMAGE}${RESET}"
+docker build --no-cache -f $DEPLOY_DIR/build.Dockerfile -t $BUILD_IMAGE .
+
+echo -e "${CYAN}[*] Cleaning up old build container if it exists...${RESET}"
+docker rm -f $TMP_CONTAINER 2>/dev/null || true
+
+echo -e "${CYAN}[*] Creating temporary container to extract build artifacts...${RESET}"
+docker create --name $TMP_CONTAINER $BUILD_IMAGE
+
+echo -e "${CYAN}[*] Copying built binary...${RESET}"
+docker cp $TMP_CONTAINER:/build/$VULN_BIN ./$VULN_BIN
+docker cp $TMP_CONTAINER:/build/$VULN_BIN $DEPLOY_DIR/$VULN_BIN
+
+echo -e "${CYAN}[*] Extracting libc used inside container...${RESET}"
+docker cp $TMP_CONTAINER:$LIBC_SOURCE $LIBC_DEST
+
+echo -e "${CYAN}[*] Removing temporary container...${RESET}"
+docker rm $TMP_CONTAINER
+
+echo -e "${CYAN}[*] Building runtime container: ${YELLOW}${RUN_IMAGE}${RESET}"
+(
+    cd $DEPLOY_DIR
+    docker build --no-cache -f run.Dockerfile -t $RUN_IMAGE .
+)
+
+docker run -d --name $RUN_IMAGE -p 1338:1337 $RUN_IMAGE
+echo -e "${CYAN}[*] Runtime container started and now being stopped for CTF runtime...${RESET}"
+docker stop $RUN_IMAGE
+
+echo -e "${CYAN}[*] Removing temporary files...${RESET}"
+rm -f $DEPLOY_DIR/vuln
+
+echo -e "${GREEN}[✓] Setup complete!${RESET}"
+echo -e "${CYAN}To start the challenge server later, run:${RESET}"
+echo -e "${YELLOW}  docker start $RUN_IMAGE${RESET}"

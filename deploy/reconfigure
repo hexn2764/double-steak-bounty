@@ -1,0 +1,48 @@
+#!/bin/bash
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
+# Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+
+# Reconfigures the stack size and rebuilds the vuln-runtime-dev Docker container with updated ulimits.
+set -e
+
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+RESET='\033[0m'
+
+RUN_IMAGE="vuln-runtime-dev"
+
+if [[ $# -ne 1 ]]; then
+    echo -e "${RED}[!] Usage: $0 <stack size in MB> (choose from: 8, 16, 24, 32, 64)${RESET}"
+    exit 1
+fi
+
+case "$1" in
+    8) STACK_SIZE="8388608" ;;
+    16) STACK_SIZE="16777216" ;;
+    24) STACK_SIZE="25165824" ;;
+    32) STACK_SIZE="33554432" ;;
+    64) STACK_SIZE="67108864" ;;
+    *)
+        echo -e "${RED}[!] Invalid stack size. Choose from: 8, 16, 24, 32, 64${RESET}"
+        exit 1
+        ;;
+esac
+
+echo -e "${CYAN}[*] Reconfiguring stack size to ${YELLOW}$1 MB${RESET}"
+
+echo -e "${CYAN}[*] Stopping and removing previous container...${RESET}"
+docker stop $RUN_IMAGE >/dev/null 2>&1 || true
+docker rm $RUN_IMAGE >/dev/null 2>&1 || true
+
+echo -e "${CYAN}[*] Creating new container with updated ulimit...${RESET}"
+docker run -d --ulimit stack=$STACK_SIZE:$STACK_SIZE --name $RUN_IMAGE -p 1337:1337 $RUN_IMAGE
+
+docker stop $RUN_IMAGE >/dev/null
+
+echo -e "${GREEN}[✓] Reconfiguration complete!${RESET}"
+echo -e "${CYAN}To start the challenge server later, run:${RESET}"
+echo -e "${YELLOW}  docker start $RUN_IMAGE${RESET}"
