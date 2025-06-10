@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2025 Kirill Sedow (GitHub: hexn2764, contact.kirill@proton.me)
-// Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas@schnack.dev)
+// Copyright (c) 2025 Lucas Schnack (GitHub: 0Zeta, lucas_schnack@protonmail.com)
 
 #include <stdio.h>
 #include <unistd.h>

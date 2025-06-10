@@ -121,4 +121,4 @@ This project is licensed under the MIT License. See [LICENSE](./LICENSE) for det
 Attribution is required. If you use or adapt this challenge, please credit the authors:
 
 - Kirill Sedow (GitHub: [hexn2764](https://github.com/hexn2764), contact.kirill@proton.me)
-- Lucas Schnack (GitHub: [0Zeta](https://github.com/0Zeta), lucas@schnack.dev)
+- Lucas Schnack (GitHub: [0Zeta](https://github.com/0Zeta), lucas_schnack@protonmail.com)
